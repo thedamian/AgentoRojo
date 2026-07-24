@@ -1,0 +1,127 @@
+# Claude Story Agent
+#
+# What this workflow does:
+#   Receives a repository_dispatch event carrying one Azure DevOps story (fired by the
+#   Agento Rojo webapp) and runs a Claude Code agent against this repository. The agent
+#   either triages the story (posting clarifying questions back to the ADO work item) or
+#   implements it and opens a pull request.
+#
+# Zero-secrets auth model:
+#   This workflow stores NO secrets in the target repository. It authenticates to Azure via
+#   GitHub OIDC federation to an Entra app registration (Workload Identity Federation) using
+#   azure/login@v2 with plain Actions *variables* (not secrets — none of these values are
+#   sensitive on their own). Short-lived Entra access tokens are then acquired at run time
+#   for (a) Azure DevOps and (b) the Microsoft Foundry resource that hosts the Claude model
+#   deployment, and are masked in the logs before use. No anthropic_api_key, no PATs.
+#
+# Required repo variables (Settings -> Secrets and variables -> Actions -> Variables):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, ANTHROPIC_FOUNDRY_RESOURCE,
+#   CLAUDE_MODEL
+#
+# Note: Entra access tokens expire after ~60-90 minutes. If a story run may exceed that,
+# prefer configuring the action to use the Azure SDK default credential chain from the
+# azure/login session (which can refresh tokens) instead of the static bearer token
+# exported below.
+
+name: Claude Story Agent
+
+# Deliberately the ONLY trigger: this avoids untrusted-input triggers (pull_request,
+# issue_comment, etc.). Only holders of a repo-scoped token can fire repository_dispatch.
+on:
+  repository_dispatch:
+    types: [claude-story]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # required for OIDC federation to Azure (azure/login)
+
+jobs:
+  claude-story:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/login@v2
+        with:
+          # Actions variables, not secrets — none of these values are sensitive.
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Acquire Azure DevOps token
+        run: |
+          ADO_TOKEN=$(az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798 --query accessToken -o tsv)
+          echo "::add-mask::$ADO_TOKEN"
+          echo "ADO_TOKEN=$ADO_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Acquire Foundry token
+        run: |
+          FOUNDRY_TOKEN=$(az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv)
+          echo "::add-mask::$FOUNDRY_TOKEN"
+          echo "ANTHROPIC_FOUNDRY_AUTH_TOKEN=$FOUNDRY_TOKEN" >> "$GITHUB_ENV"
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_FOUNDRY_RESOURCE: ${{ vars.ANTHROPIC_FOUNDRY_RESOURCE }}
+          ANTHROPIC_FOUNDRY_AUTH_TOKEN: ${{ env.ANTHROPIC_FOUNDRY_AUTH_TOKEN }}
+          ADO_TOKEN: ${{ env.ADO_TOKEN }}
+          CLAUDE_CODE_USE_FOUNDRY: 1 # Foundry provider mode per the action's cloud-providers docs
+        with:
+          prompt: |
+            You are a coding agent handling one Azure DevOps story dispatched to this
+            repository.
+
+            Environment: the ADO_TOKEN env var holds an Entra bearer token for Azure DevOps
+            REST calls — use it in `Authorization: Bearer` headers, never echo or log it.
+
+            The story context JSON (work item id/url, org, project, title, description,
+            acceptance criteria, definition of done, comment history, project purpose,
+            project users, additional notes, possibly commentsTruncated: true) is appended
+            at the end of this prompt.
+
+            Phase 1 — Triage.
+            - Re-fetch the work item's comments (they may have changed since dispatch):
+              GET https://dev.azure.com/{adoOrg}/{adoProject}/_apis/wit/workItems/{workItemId}/comments?api-version=7.1-preview.4
+              with the bearer token.
+            - Question protocol: any comment posted by this system starts with the marker
+              `**[claude-agent]** QUESTIONS:` followed by a numbered list. An answer is any
+              later comment that references those numbers or clearly addresses them.
+            - Read the full story (title, description, acceptance criteria, definition of
+              done, project purpose, users, additional notes) plus the complete comment
+              thread. Decide: do you have everything needed to implement this story
+              confidently?
+            - If NO → post ONE comment on the work item
+              (POST https://dev.azure.com/{adoOrg}/{adoProject}/_apis/wit/workItems/{workItemId}/comments?api-version=7.1-preview.4,
+              body {"text": "..."}) starting with the marker, containing a numbered list of
+              your questions, then stop the run successfully without changing any code.
+              (Questions live on the story so anyone — PO, teammate — can answer; the
+              developer re-dispatches later.)
+            - If a previous [claude-agent] questions comment exists with some questions
+              still unanswered → repeat ONLY the unanswered ones in a fresh marker comment
+              and stop.
+            - If YES (no questions needed, or all previous questions answered) → proceed to
+              Phase 2.
+
+            Phase 2 — Implement.
+            - Create branch story/{workItemId}-{slugified-title} (lowercase, alphanumerics
+              and hyphens, <= 50 chars of slug).
+            - Implement to satisfy the Acceptance Criteria and the Definition of Done.
+              Follow the repo's existing conventions; run existing tests and linters; add
+              tests for new behavior.
+            - Open a PR titled `AB#{workItemId}: {title}` (the AB# prefix auto-links the PR
+              to the ADO work item when the Azure Boards<->GitHub connection is configured).
+              PR body: summary of changes; how each Acceptance Criterion is met (one per
+              bullet); anything intentionally out of scope.
+            - Post a final comment on the ADO work item:
+              `**[claude-agent]** PR ready: <PR URL>`.
+
+            Rules: never print the token; do not push directly to the default branch; if
+            commentsTruncated is true, note that older comments were omitted and
+            re-fetching comments (Phase 1) restores the full thread.
+
+            STORY CONTEXT (JSON):
+            ${{ toJSON(github.event.client_payload) }}
+          claude_args: "--max-turns 50 --model ${{ vars.CLAUDE_MODEL }}"

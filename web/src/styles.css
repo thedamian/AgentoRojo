@@ -1,0 +1,244 @@
+:root {
+  color-scheme: light dark;
+  --border: #ccc;
+  --bg-subtle: #f5f5f5;
+  --error: #b3261e;
+  --ok: #1e7a34;
+  --notice-bg: #fff6e0;
+  --notice-border: #e0c04a;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --border: #444;
+    --bg-subtle: #1e1e1e;
+    --notice-bg: #3a3315;
+    --notice-border: #6b5c1f;
+  }
+  body {
+    background: #121212;
+    color: #eee;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.app-header nav button {
+  margin-left: 0.5rem;
+}
+
+.banner {
+  background: var(--notice-bg);
+  border: 1px solid var(--notice-border);
+  padding: 0.6rem 0.9rem;
+  margin-top: 1rem;
+  border-radius: 4px;
+}
+
+.app-main {
+  padding-top: 1.5rem;
+}
+
+h1,
+h2,
+h3 {
+  margin-top: 0;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+fieldset {
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.field span {
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="password"],
+textarea {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.error {
+  color: var(--error);
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.notice {
+  background: var(--notice-bg);
+  border: 1px solid var(--notice-border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+}
+
+.hint {
+  color: #888;
+  font-size: 0.9em;
+}
+
+.pre-wrap {
+  white-space: pre-wrap;
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+}
+
+.checklist li {
+  padding: 0.25rem 0;
+}
+
+.setup-file {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.setup-file pre {
+  overflow-x: auto;
+  background: var(--bg-subtle);
+  padding: 0.75rem;
+  border-radius: 4px;
+  max-height: 20rem;
+}
+
+.comments {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.comments li {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.run-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  font-size: 0.9em;
+}
+
+.dispatch-list {
+  padding-left: 1.25rem;
+}
+
+.repo-input .ok,
+.repo-input .error,
+.repo-input .hint {
+  font-size: 0.9em;
+}
+
+.project-row {
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+
+.project-row:first-child {
+  border-top: none;
+}
+
+.project-row-toggle {
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font-weight: 600;
+}
+
+.review-block h3 {
+  margin-bottom: 0.15rem;
+}
