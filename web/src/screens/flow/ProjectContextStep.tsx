@@ -69,14 +69,17 @@ export default function ProjectContextStep({ repo, onResolved }: Props) {
   return (
     <section className="step">
       <h2>Project context for {repo}</h2>
-      <p>This repo has no saved project context yet. It will be reused for future work items in this repo.</p>
+      <p>
+        This repo has no saved project context yet. Give the agent enough product context to make sound decisions;
+        it will be reused for future stories in this board project or team.
+      </p>
       <form onSubmit={(e) => void submit(e)}>
         <label className="field">
-          <span>What is the purpose of this application?</span>
+          <span>Describe the product, website, or application this project is building.</span>
           <textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} required />
         </label>
         <label className="field">
-          <span>Describe the main users of this application and their role</span>
+          <span>Who uses it? Describe each user persona and what they need to accomplish.</span>
           <textarea value={usersDescription} onChange={(e) => setUsersDescription(e.target.value)} required />
         </label>
         {error && (

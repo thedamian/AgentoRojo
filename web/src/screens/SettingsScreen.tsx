@@ -5,12 +5,14 @@ import { clearGithubPat, getGithubPat, setGithubPat } from "../auth/githubPat";
 import { getAccount, isEntraConfigured, signIn, signOut } from "../auth/msal";
 import { friendlyMessage, getSettings, listProjects, putSettings } from "../api/client";
 import ProjectContextRow from "../components/ProjectContextRow";
+import { getConnectionProfile } from "../auth/connectionProfile";
 
 interface Props {
   notice?: string;
+  onConfigure: () => void;
 }
 
-export default function SettingsScreen({ notice }: Props) {
+export default function SettingsScreen({ notice, onConfigure }: Props) {
   const [pat, setPat] = useState(getGithubPat() ?? "");
   const [patSaved, setPatSaved] = useState(Boolean(getGithubPat()));
   const [account, setAccount] = useState<AccountInfo | null>(null);
@@ -23,6 +25,7 @@ export default function SettingsScreen({ notice }: Props) {
   const [projects, setProjects] = useState<ProjectContext[] | null>(null);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [expandedRepo, setExpandedRepo] = useState<string | null>(null);
+  const profile = getConnectionProfile();
 
   useEffect(() => {
     void getAccount().then(setAccount);
@@ -72,6 +75,16 @@ export default function SettingsScreen({ notice }: Props) {
     <section className="step">
       <h1>Settings</h1>
       {notice && <p className="notice">{notice}</p>}
+
+      <fieldset>
+        <legend>Connection profile</legend>
+        {profile ? (
+          <p>
+            {profile.storyBoard === "jira" ? "Jira" : "Azure DevOps"} · {profile.executionTarget === "local" ? "Local agent" : profile.executionTarget === "claude" ? "Claude" : "OpenAI"} · {profile.gitProvider === "azure-devops" ? "Azure DevOps Git" : profile.gitProvider}
+          </p>
+        ) : <p>No connection profile has been saved.</p>}
+        <button type="button" onClick={onConfigure}>Change connections</button>
+      </fieldset>
 
       <fieldset>
         <legend>GitHub PAT</legend>

@@ -38,10 +38,19 @@ function upstreamErrorFrom(res: Response): UpstreamError {
   return new UpstreamError("ado", res.status, `ADO request failed with status ${res.status}`, retryAfterSecondsFrom(res.headers));
 }
 
+function authorizationHeader(token: string): string {
+  // Browser clients prefix Azure DevOps PATs so the server can distinguish them from an
+  // Entra access token without persisting either secret. ADO accepts Basic base64(:PAT).
+  if (token.startsWith("pat:")) {
+    return `Basic ${Buffer.from(`:${token.slice(4)}`).toString("base64")}`;
+  }
+  return `Bearer ${token}`;
+}
+
 async function adoFetch<T>(url: string, token: string): Promise<T> {
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: authorizationHeader(token),
       Accept: "application/json",
     },
   });

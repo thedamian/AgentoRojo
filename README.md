@@ -1,15 +1,16 @@
 # Agento Rojo
 
 A locally-run developer tool that takes an Azure DevOps (dev.azure.com) work item, enriches it
-with per-project context, and dispatches a Claude Code agent running in **GitHub Actions** on the
+with per-project context, and dispatches a coding agent running in **GitHub Actions** on the
 mapped repository. The agent triages the story — posting clarifying questions back to the ADO
-work item if needed — or implements it and opens a pull request.
+work item if needed — or implements it and opens a pull request. First-run onboarding records the
+user's preferred story board, coding location, local agent (when applicable), and Git provider.
 
-**No LLM API keys and no ADO PATs anywhere in the system.** Azure DevOps is accessed with the
-signed-in user's Entra ID token (MSAL in the browser); the GitHub Actions agent authenticates to
-Azure via OIDC → Entra Workload Identity Federation and calls Claude through a Microsoft Foundry
-resource. The only credential you enter is a GitHub fine-grained PAT, kept in your browser's
-localStorage.
+Azure DevOps can be accessed with the signed-in user's Entra ID token (MSAL in the browser) or an
+ADO PAT. GitHub uses a fine-grained PAT. Browser-supplied credentials stay in localStorage and are
+used only on the corresponding request; the server does not persist or log them. The GitHub Actions
+agent authenticates to Azure via OIDC → Entra Workload Identity Federation and calls Claude through
+a Microsoft Foundry resource.
 
 ## Layout
 
@@ -31,8 +32,9 @@ npm install
 npm run dev        # starts server (3001) and web (5173) concurrently
 ```
 
-Open http://localhost:5173. On first load you'll be asked for a **GitHub fine-grained PAT** with
-these permissions on the target repos:
+Open http://localhost:5173. On first load the connection wizard asks for exactly one story-board,
+execution target, and Git-provider choice, then asks for the required credentials. For the current
+Azure DevOps → GitHub Actions path, use a **GitHub fine-grained PAT** with these permissions:
 
 - **Contents: Read and write** — required to fire `repository_dispatch`
 - **Actions: Read** — to show workflow run status
@@ -62,8 +64,10 @@ persists or logs them (the request logger redacts them — enforced by a test).
 
 ## Using it
 
-1. Open `http://localhost:5173/?workItemUrl=<URL-encoded ADO work item URL>` — or paste the URL
-   on the home screen. Both `dev.azure.com/{org}/...` and `{org}.visualstudio.com/...` formats work.
+1. Open `http://localhost:5173/?story=<URL-encoded ADO work item URL>` — or paste the URL on the
+   home screen. The legacy `workItemUrl` parameter is also supported. Both `dev.azure.com/{org}/...`
+   and `{org}.visualstudio.com/...` formats work. After loading one story, entering only a work item
+   ID reuses that Azure DevOps project.
 2. The app loads the story (title, description, acceptance criteria, Definition of Done, all
    comments) and resolves the parent Feature. If the work item isn't a User Story / Product
    Backlog Item you can proceed anyway or cancel.

@@ -13,6 +13,7 @@ import type {
   WorkItemDetails,
 } from "@agento-rojo/shared";
 import { getGithubPat } from "../auth/githubPat";
+import { getConnectionProfile } from "../auth/connectionProfile";
 import { acquireAdoToken } from "../auth/msal";
 
 /** Thrown for every non-OK response; carries the parsed ApiError body. */
@@ -88,6 +89,13 @@ async function buildHeaders(forceRefreshAdo: boolean): Promise<Record<string, st
   const adoToken = await acquireAdoToken(forceRefreshAdo);
   if (adoToken) {
     headers[ADO_TOKEN_HEADER] = adoToken;
+  } else {
+    const profile = getConnectionProfile();
+    // The server recognizes the prefix and uses HTTP Basic PAT authentication. The value is
+    // request-scoped and follows the same redaction/no-persistence guarantees as Entra tokens.
+    if (profile?.storyBoard === "azure-devops" && profile.boardCredential?.trim()) {
+      headers[ADO_TOKEN_HEADER] = `pat:${profile.boardCredential.trim()}`;
+    }
   }
   return headers;
 }
